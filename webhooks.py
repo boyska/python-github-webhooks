@@ -111,7 +111,7 @@ def index():
         abort(400)
 
     # Possible hooks
-    scripts = [
+    candidate_scripts = [
         join(hooks, '{event}-{name}-{branch}'.format(**meta)),
         join(hooks, '{event}-{name}'.format(**meta)),
         join(hooks, '{event}'.format(**meta)),
@@ -119,8 +119,9 @@ def index():
     ]
 
     # Check permissions
-    scripts = [s for s in scripts if isfile(s) and access(s, X_OK)]
+    scripts = [s for s in candidate_scripts if isfile(s) and access(s, X_OK)]
     if not scripts:
+        log.warning("nothing found for " + candidate_scripts[0])
         return ''
 
     # Save payload to temporal file
