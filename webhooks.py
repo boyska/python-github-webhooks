@@ -16,8 +16,20 @@
 # under the License.
 
 import logging
-from sys import stderr
-logging.basicConfig(stream=stderr)
+import logging.config
+import logging.handlers
+
+logging.config.dictConfig(dict(
+    version=1,
+    formatters={'brief': {'format': '%(name)s %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'}},
+    handlers={'syslog': {
+        'class': 'logging.handlers.SysLogHandler',
+        'level': 'INFO',
+        'formatter': 'brief'
+}},
+    root={'handlers': ['syslog'], 'level': 'INFO'}))
+
+log = logging.getLogger('webhooks')
 
 import hmac
 from hashlib import sha1
@@ -46,6 +58,7 @@ def index():
 
     # Only POST is implemented
     if request.method != 'POST':
+        log.error("Someone is performing GET over /")
         abort(501)
 
     # Load config
@@ -130,7 +143,7 @@ def index():
 
         # Log errors if a hook failed
         if proc.returncode != 0:
-            logging.error('{} : {} \n{}'.format(
+            log.error('{} : {} \n{}'.format(
                 s, proc.returncode, stderr
             ))
 
@@ -141,8 +154,8 @@ def index():
     if not info:
         return ''
 
-    output = dumps(ran, sort_keys=True, indent=4)
-    logging.info(output)
+    output = dumps(ran, sort_keys=True)
+    log.info(output)
     return output
 
 
