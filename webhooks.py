@@ -105,7 +105,7 @@ def index():
         meta = {
             'name': payload['repository']['name'],
             'branch': payload['ref'].split('/')[2],
-            'event': event
+            'event': event or payload['object_kind']
         }
     except:
         abort(400)
