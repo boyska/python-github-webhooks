@@ -92,9 +92,12 @@ def index():
             abort(403)
 
     # Implement ping
-    event = request.headers.get('X-GitHub-Event', 'ping')
+    event = request.headers.get('X-GitHub-Event', None)
+    if event is None:
+        event = request.headers.get('X-Gitlab-Event', '')
     if event == 'ping':
-        return dumps({'msg': 'pong'})
+        log.info("just a ping")
+        # return dumps({'msg': 'pong'})
 
     # Gather data
     try:
