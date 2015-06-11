@@ -21,13 +21,30 @@ import logging.handlers
 
 logging.config.dictConfig(dict(
     version=1,
-    formatters={'brief': {'format': '%(name)s %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'}},
+    formatters={'brief': {
+        'format': '%(name)s %(message)s',
+        'datefmt': '%Y-%m-%d %H:%M:%S'},
+        'long': {
+            'format': '%(name)s %(filename)s:%(lineno)d %(message)s',
+        'datefmt': '%Y-%m-%d %H:%M:%S'},
+        },
     handlers={'syslog': {
         'class': 'logging.handlers.SysLogHandler',
         'level': 'INFO',
         'formatter': 'brief'
-}},
-    root={'handlers': ['syslog'], 'level': 'INFO'}))
+    },
+        "out": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "brief",
+            "stream": "ext://sys.stdout"
+        },
+           "err": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "long"
+        } },
+    root={'handlers': ['syslog', "out", "err"], 'level': 'INFO'}))
 
 log = logging.getLogger('webhooks')
 
@@ -45,6 +62,7 @@ from flask import Flask, request, abort
 
 
 application = Flask(__name__)
+application.config.from_envvar('WEBHOOKS_CONFIG')
 
 
 @application.route('/', methods=['GET', 'POST'])
@@ -61,12 +79,8 @@ def index():
         log.error("Someone is performing GET over /")
         abort(501)
 
-    # Load config
-    with open(join(path, 'config.json'), 'r') as cfg:
-        config = loads(cfg.read())
-
     # Allow Github IPs only
-    if config.get('github_ips_only', True):
+    if application.config.get('GITHUB_IPS_ONLY', True):
         src_ip = ip_address(
             u'{}'.format(request.remote_addr)  # Fix stupid ipaddress issue
         )
@@ -79,7 +93,7 @@ def index():
             abort(403)
 
     # Enforce secret
-    secret = config.get('enforce_secret', '')
+    secret = application.config.get('ENFORCE_SECRET', '')
     if secret:
         # Only SHA1 is supported
         sha_name, signature = request.headers.get('X-Hub-Signature').split('=')
@@ -107,7 +121,8 @@ def index():
             'branch': payload['ref'].split('/')[2],
             'event': event or payload['object_kind']
         }
-    except:
+    except Exception:
+        logging.exception("invalid payload")
         abort(400)
 
     # Possible hooks
@@ -154,7 +169,7 @@ def index():
     # Remove temporal file
     remove(tmpfile)
 
-    info = config.get('return_scripts_info', False)
+    info = application.config.get('RETURN_SCRIPTS_INFO', False)
     if not info:
         return ''
 
